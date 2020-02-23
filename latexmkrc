@@ -24,6 +24,8 @@ $TIMERON = $ENV{TIMERON};
 $TIMERON //= '0';
 $TIKZFILE = $ENV{TIKZFILE};
 $TIKZFILE //= '';
+$USEDEV = $ENV{USEDEV};
+$USEDEV //= '';
 
 
 $texargs = '';
@@ -79,6 +81,12 @@ if ( (! defined &set_tex_cmds) || (! defined $pre_tex_code) ) {
 } else { # for latexmk >= 4.61
     set_tex_cmds($LATEXFLAGS . ' %O %P');
     $pre_tex_code = $texargs;
+}
+
+if ($USEDEV ne '') {
+    $pdflatex =~ s/pdflatex/pdflatex-dev/g;
+    $xelatex =~ s/xelatex/xelatex-dev/g;
+    $lualatex =~ s/lualatex/lualatex-dev/g;
 }
 
 $biber = 'biber ' . $BIBERFLAGS . ' %O %S';
@@ -387,24 +395,27 @@ sub regexp_cleanup {
     }
 }
 
-sub cleanup1 {
-    # Usage: cleanup1( directory, exts_without_period, ... )
-    #
-    # The directory and the root file name are fixed names, so I must escape
-    #   any glob metacharacters in them:
-    my $dir = fix_pattern( shift );
-    my $root_fixed = fix_pattern( $root_filename );
-    foreach (@_) {
-        my $name = /%R/ ? $_ : "%R.$_";
-	$name =~ s/%R/${root_fixed}/;
-	$name = $dir.$name;
-        if ($remove_dryrun == 0) {
-            unlink_or_move( glob( "$name" ) );
-        } else {
-            print "Would be removed: $name\n";
+{
+    no warnings 'redefine';
+    sub cleanup1 {
+        # Usage: cleanup1( directory, exts_without_period, ... )
+        #
+        # The directory and the root file name are fixed names, so I must escape
+        #   any glob metacharacters in them:
+        my $dir = fix_pattern( shift );
+        my $root_fixed = fix_pattern( $root_filename );
+        foreach (@_) {
+            my $name = /%R/ ? $_ : "%R.$_";
+            $name =~ s/%R/${root_fixed}/;
+            $name = $dir.$name;
+            if ($remove_dryrun == 0) {
+                unlink_or_move( glob( "$name" ) );
+            } else {
+                print "Would be removed: $name\n";
+            }
         }
-    }
-    if ($cleanup_mode == 1) {
-        regexp_cleanup();
-    }
-} #END cleanup1
+        if ($cleanup_mode == 1) {
+            regexp_cleanup();
+        }
+    } #END cleanup1
+}
